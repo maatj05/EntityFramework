@@ -9,6 +9,8 @@ using System.Linq.Expressions;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.EntityFrameworkCore.Query.Expressions.Internal;
+using Microsoft.EntityFrameworkCore.Query.ExpressionVisitors;
 
 namespace Microsoft.EntityFrameworkCore.Query.Internal
 {
@@ -16,10 +18,10 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
     ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
     ///     directly from your code. This API may change or be removed in future releases.
     /// </summary>
-    public class ExpressionPrinter : ExpressionVisitor, IExpressionPrinter
+    public class ExpressionPrinter : ExpressionVisitorBase, IExpressionPrinter
     {
-        private IndentedStringBuilder _stringBuilder;
-        private List<IConstantPrinter> _constantPrinters;
+        private IndentedStringBuilder _stringBuilder = new IndentedStringBuilder();
+        private List<IConstantPrinter> _constantPrinters = new List<IConstantPrinter>();
         private Dictionary<ParameterExpression, string> _parametersInScope;
 
         private readonly Dictionary<ExpressionType, string> _binaryOperandMap = new Dictionary<ExpressionType, string>
@@ -47,6 +49,40 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
         ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
         ///     directly from your code. This API may change or be removed in future releases.
         /// </summary>
+        public ExpressionPrinter()
+            : this(new List<IConstantPrinter>())
+        {
+        }
+
+        /// <summary>
+        ///     This API supports the Entity Framework Core infrastructure and is not intended to be used 
+        ///     directly from your code. This API may change or be removed in future releases.
+        /// </summary>
+        protected ExpressionPrinter(List<IConstantPrinter> constantPrinters)
+        {
+            _stringBuilder = new IndentedStringBuilder();
+            _parametersInScope = new Dictionary<ParameterExpression, string>();
+
+            _constantPrinters = new List<IConstantPrinter>(constantPrinters);
+            _constantPrinters.AddRange(
+                new List<IConstantPrinter>
+                {
+                    new CollectionConstantPrinter(),
+                    new MetadataPropertyPrinter(),
+                    new DefaultConstantPrinter(),
+                });
+        }
+
+        /// <summary>
+        ///     This API supports the Entity Framework Core infrastructure and is not intended to be used 
+        ///     directly from your code. This API may change or be removed in future releases.
+        /// </summary>
+        protected IndentedStringBuilder StringBuilder => _stringBuilder;
+
+        /// <summary>
+        ///     This API supports the Entity Framework Core infrastructure and is not intended to be used 
+        ///     directly from your code. This API may change or be removed in future releases.
+        /// </summary>
         protected static Action<IndentedStringBuilder, string> Append
         {
             get { return (sb, s) => sb.Append(s); }
@@ -65,11 +101,19 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
         ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
         ///     directly from your code. This API may change or be removed in future releases.
         /// </summary>
+        public void SetStringBuilder(IndentedStringBuilder stringBuilder)
+        {
+            _stringBuilder = stringBuilder;
+        }
+
+        /// <summary>
+        ///     This API supports the Entity Framework Core infrastructure and is not intended to be used 
+        ///     directly from your code. This API may change or be removed in future releases.
+        /// </summary>
         public virtual string Print(Expression expression)
         {
-            _stringBuilder = new IndentedStringBuilder();
-            _parametersInScope = new Dictionary<ParameterExpression, string>();
-            _constantPrinters = GetConstantPrinters();
+            _stringBuilder.Clear();
+            _parametersInScope.Clear();
 
             Visit(expression);
 
@@ -80,18 +124,6 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
             return result;
         }
-
-        /// <summary>
-        ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
-        protected virtual List<IConstantPrinter> GetConstantPrinters()
-            => new List<IConstantPrinter>
-            {
-                new CollectionConstantPrinter(),
-                new MetadataPropertyPrinter(),
-                new DefaultConstantPrinter()
-            };
 
         /// <summary>
         ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
@@ -188,6 +220,10 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
                 case ExpressionType.Try:
                     VisitTry((TryExpression)node);
+                    break;
+
+                case ExpressionType.Extension:
+                    VisitExtension(node);
                     break;
 
                 default:
@@ -614,6 +650,25 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
         /// <summary>
         ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
+        ///     directly from your code. This API may change or be removed in future releases.
+        /// </summary>
+        protected override Expression VisitExtension(Expression node)
+        {
+            var nullConditional = node as NullConditionalExpression;
+            if (nullConditional != null)
+            {
+                StringBuilder.Append(nullConditional.ToString());
+
+                return node;
+            }
+
+            UnhandledExpressionType(node);
+
+            return node;
+        }
+
+        /// <summary>
+        ///     This API supports the Entity Framework Core infrastructure and is not intended to be used 
         ///     directly from your code. This API may change or be removed in future releases.
         /// </summary>
         protected virtual string PostProcess([NotNull] string queryPlan)

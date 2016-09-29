@@ -29,8 +29,10 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.FunctionalTests
 
                 Assert.NotNull(customers);
                 Assert.StartsWith(
-                    @"    Compiling query model: 'value(Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryable`1[Microsoft.EntityFrameworkCore.Specification.Tests.TestModels.Northwind.Customer])'
-    Optimized query model: 'value(Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryable`1[Microsoft.EntityFrameworkCore.Specification.Tests.TestModels.Northwind.Customer])'
+                    @"    Compiling query model: 'from Customer <generated>_0 in [EntityQueryable<Customer>]
+select <generated>_0'
+    Optimized query model: 'from Customer <generated>_0 in [EntityQueryable<Customer>]
+select <generated>_0'
     TRACKED: True
 (QueryContext queryContext) => IEnumerable<Customer> _ShapedQuery(
     queryContext: queryContext, 
@@ -89,8 +91,11 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.FunctionalTests
                         .ToList();
 
                 Assert.NotNull(customers);
-                Assert.StartsWith(@"    Compiling query model: 'value(Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryable`1[Microsoft.EntityFrameworkCore.Specification.Tests.TestModels.Northwind.Customer]) => Include([c].Orders)'
-    Optimized query model: 'value(Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryable`1[Microsoft.EntityFrameworkCore.Specification.Tests.TestModels.Northwind.Customer])'
+                Assert.StartsWith(@"    Compiling query model: '(from Customer c in [EntityQueryable<Customer>]
+select c)
+.Include([c].Orders)'
+    Optimized query model: 'from Customer c in [EntityQueryable<Customer>]
+select c'
     Including navigation: 'c.Orders'
     TRACKED: True
 (QueryContext queryContext) => IEnumerable<Customer> _Include(

@@ -92,6 +92,8 @@ namespace Microsoft.EntityFrameworkCore.Query
         private readonly IExpressionPrinter _expressionPrinter;
         private readonly QueryCompilationContext _queryCompilationContext;
 
+        private readonly IQueryModelPrinter _queryModelPrinter;
+
         private Expression _expression;
         private ParameterExpression _currentParameter;
 
@@ -188,6 +190,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             _queryCompilationContext = queryCompilationContext;
 
             LinqOperatorProvider = queryCompilationContext.LinqOperatorProvider;
+            _queryModelPrinter = new QueryModelPrinter();
         }
 
         /// <summary>
@@ -245,7 +248,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 QueryCompilationContext.Logger
                     .LogDebug(
                         CoreEventId.CompilingQueryModel,
-                        () => CoreStrings.LogCompilingQueryModel(queryModel));
+                        () => CoreStrings.LogCompilingQueryModel(_queryModelPrinter.Print(queryModel)));
 
                 _blockTaskExpressions = false;
 
@@ -359,7 +362,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             QueryCompilationContext.Logger
                 .LogDebug(
                     CoreEventId.OptimizedQueryModel,
-                    () => CoreStrings.LogOptimizedQueryModel(queryModel));
+                    () => CoreStrings.LogOptimizedQueryModel(_queryModelPrinter.Print(queryModel)));
         }
 
         /// <summary>
